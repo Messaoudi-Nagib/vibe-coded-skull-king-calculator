@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skull King - Calculateur de scores</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: radial-gradient(ellipse at top, #0d1f3c 0%, #070d1a 70%);
+      min-height: 100vh;
+      font-family: 'Crimson Text', serif;
+      color: #e2d8c0;
+    }
+    h1, h2, h3, .pirate-font { font-family: 'Pirata One', cursive; }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #070d1a; }
+    ::-webkit-scrollbar-thumb { background: rgba(212,175,55,0.4); border-radius: 3px; }
+
+    /* No number spinners */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+
+    .card {
+      background: linear-gradient(145deg, #0f1a2e, #162035);
+      border: 1px solid rgba(212,175,55,0.25);
+      border-radius: 12px;
+    }
+    .card-gold {
+      border: 1px solid rgba(212,175,55,0.5);
+      box-shadow: 0 0 20px rgba(212,175,55,0.08);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #b8962e, #d4af37, #c9a52c);
+      color: #070d1a;
+      font-weight: 700;
+      font-family: 'Pirata One', cursive;
+      letter-spacing: 0.05em;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.9; transform: translateY(-1px); }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: rgba(212,175,55,0.1);
+      border: 1px solid rgba(212,175,55,0.35);
+      color: #d4af37;
+      font-family: 'Pirata One', cursive;
+      letter-spacing: 0.05em;
+      transition: background 0.2s;
+    }
+    .btn-secondary:hover { background: rgba(212,175,55,0.18); }
+
+    .stepper-btn {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 700;
+      cursor: pointer; transition: transform 0.1s, opacity 0.2s;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .stepper-btn:active { transform: scale(0.92); }
+    .stepper-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .stepper-minus {
+      background: rgba(239,68,68,0.15);
+      border: 1px solid rgba(239,68,68,0.4);
+      color: #ef4444;
+    }
+    .stepper-plus {
+      background: rgba(74,222,128,0.15);
+      border: 1px solid rgba(74,222,128,0.4);
+      color: #4ade80;
+    }
+    .stepper-val {
+      min-width: 2rem;
+      text-align: center;
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #e2d8c0;
+    }
+
+    /* Toggle switch */
+    .toggle-wrap { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+    .toggle-track {
+      width: 44px; height: 24px;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      position: relative;
+      transition: background 0.25s, border-color 0.25s;
+      flex-shrink: 0;
+    }
+    .toggle-track.on {
+      background: rgba(212,175,55,0.35);
+      border-color: rgba(212,175,55,0.6);
+    }
+    .toggle-thumb {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      background: #888;
+      position: absolute;
+      top: 2px; left: 3px;
+      transition: left 0.25s, background 0.25s;
+    }
+    .toggle-track.on .toggle-thumb { left: 23px; background: #d4af37; }
+
+    /* Fade-in animation */
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.35s ease both; }
+
+    /* Score color classes */
+    .score-pos { color: #4ade80; }
+    .score-neg { color: #f87171; }
+    .score-zero { color: #94a3b8; }
+
+    /* Collapsible bonus arrow */
+    .bonus-arrow { transition: transform 0.25s; }
+    .bonus-arrow.open { transform: rotate(180deg); }
+
+    /* Avatar colors */
+    .avatar-0  { background: #6366f1; }
+    .avatar-1  { background: #ec4899; }
+    .avatar-2  { background: #f59e0b; }
+    .avatar-3  { background: #10b981; }
+    .avatar-4  { background: #3b82f6; }
+    .avatar-5  { background: #ef4444; }
+    .avatar-6  { background: #8b5cf6; }
+    .avatar-7  { background: #14b8a6; }
+
+    .avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Pirata One', cursive;
+      font-size: 1rem;
+      color: #fff;
+      flex-shrink: 0;
+      border: 2px solid rgba(255,255,255,0.25);
+    }
+
+    /* Player card during play */
+    .player-card {
+      background: linear-gradient(145deg, #0f1a2e, #162035);
+      border: 1px solid rgba(212,175,55,0.22);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* Table styles */
+    table { border-collapse: collapse; width: 100%; }
+    th { background: rgba(212,175,55,0.12); color: #d4af37; font-family: 'Pirata One', cursive; font-size: 0.9rem; padding: 8px 10px; white-space: nowrap; }
+    td { padding: 7px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.95rem; white-space: nowrap; }
+    tr:last-child td { border-bottom: none; }
+
+    .gold-text { color: #d4af37; }
+    .muted { color: #6b7a99; }
+
+    input.player-input {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(212,175,55,0.3);
+      border-radius: 8px;
+      color: #e2d8c0;
+      padding: 10px 14px;
+      font-size: 1rem;
+      font-family: 'Crimson Text', serif;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input.player-input:focus { border-color: rgba(212,175,55,0.65); }
+    input.player-input::placeholder { color: #6b7a99; }
+
+    .scores-panel {
+      background: rgba(7,13,26,0.8);
+      border: 1px solid rgba(212,175,55,0.2);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+
+    /* Divider */
+    .gold-divider { border: none; border-top: 1px solid rgba(212,175,55,0.2); margin: 12px 0; }
+  </style>
+</head>
+<body>
+<div id="app" class="min-h-screen">
+  <div class="mx-auto px-4 py-6" style="max-width:512px">
+
+    <!-- ==================== PHASE 1: SETUP ==================== -->
+    <div v-if="phase === 'setup'" class="fade-in">
+      <!-- Title -->
+      <div class="text-center mb-8">
+        <div class="text-5xl mb-2">☠️</div>
+        <h1 class="pirate-font text-5xl gold-text" style="text-shadow: 0 0 30px rgba(212,175,55,0.4)">Skull King</h1>
+        <p class="text-lg muted mt-1">Calculateur de Scores</p>
+      </div>
+
+      <!-- Extension toggle -->
+      <div class="card card-gold p-4 mb-5">
+        <label class="toggle-wrap" @click="extensionEnabled = !extensionEnabled">
+          <div class="toggle-track" :class="{ on: extensionEnabled }">
+            <div class="toggle-thumb"></div>
+          </div>
+          <span class="text-base font-semibold" style="color:#e2d8c0">Extension Skull King</span>
+        </label>
+        <p class="text-sm muted mt-2 ml-14" v-if="extensionEnabled">Cartes 7/8, Second, Casier de Davy Jones activés.</p>
+      </div>
+
+      <!-- Add players -->
+      <div class="card card-gold p-4 mb-5">
+        <h2 class="pirate-font text-xl gold-text mb-3">⚓ Joueurs ({{ players.length }}/8)</h2>
+        <div class="flex gap-2 mb-4">
+          <input
+            class="player-input flex-1"
+            v-model="newPlayerName"
+            placeholder="Nom du joueur..."
+            @keyup.enter="addPlayer"
+            maxlength="16"
+          />
+          <button
+            class="btn-primary px-4 py-2 rounded-lg text-sm"
+            @click="addPlayer"
+            :disabled="players.length >= 8"
+          >Ajouter</button>
+        </div>
+        <div v-if="players.length === 0" class="text-center muted py-4 text-sm">Ajoutez au moins 2 joueurs pour commencer.</div>
+        <ul class="space-y-2">
+          <li
+            v-for="(p, i) in players"
+            :key="p.id"
+            class="flex items-center gap-3 py-2 px-3 rounded-lg"
+            style="background:rgba(255,255,255,0.04)"
+          >
+            <div class="avatar" :class="'avatar-' + p.colorIdx">{{ p.name[0].toUpperCase() }}</div>
+            <span class="flex-1 font-semibold text-base" style="color:#e2d8c0">{{ p.name }}</span>
+            <button @click="removePlayer(p.id)" class="text-red-400 hover:text-red-300 transition-colors text-lg px-2">✕</button>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Start button -->
+      <button
+        class="btn-primary w-full py-4 rounded-xl text-xl"
+        @click="startGame"
+        :disabled="players.length < 2"
+      >⚔️ Commencer la Partie ⚔️</button>
+      <p class="text-center muted text-sm mt-2" v-if="players.length < 2">Il faut au moins 2 joueurs.</p>
+    </div>
+
+    <!-- ==================== PHASE 2: PLAYING ==================== -->
+    <div v-if="phase === 'playing'" class="fade-in">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between mb-4">
+        <button class="btn-secondary px-3 py-2 rounded-lg text-sm" @click="goToPreviousRound" :disabled="currentRound <= 1 && history.length === 0">
+          ← Retour
+        </button>
+        <div class="text-center">
+          <h2 class="pirate-font text-3xl gold-text" style="text-shadow:0 0 15px rgba(212,175,55,0.35)">
+            Manche {{ currentRound }}/10
+          </h2>
+        </div>
+        <button class="btn-secondary px-3 py-2 rounded-lg text-sm" @click="showScores = !showScores">
+          {{ showScores ? 'Masquer' : 'Scores' }}
+        </button>
+      </div>
+
+      <!-- Running scores panel -->
+      <div v-if="showScores" class="scores-panel mb-4 fade-in">
+        <h3 class="pirate-font text-base gold-text mb-2">Classement actuel</h3>
+        <div class="space-y-1">
+          <div v-for="(p, i) in sortedPlayers" :key="p.id" class="flex items-center gap-2 text-sm">
+            <span class="muted w-4 text-right">{{ i + 1 }}.</span>
+            <div class="avatar" :class="'avatar-' + p.colorIdx" style="width:22px;height:22px;font-size:0.65rem;border-width:1px">{{ p.name[0].toUpperCase() }}</div>
+            <span class="flex-1">{{ p.name }}</span>
+            <span class="font-bold" :class="scoreClass(playerScores[p.id])">{{ playerScores[p.id] }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Player cards -->
+      <div class="space-y-4 mb-6">
+        <div v-for="p in players" :key="p.id" class="player-card fade-in">
+          <!-- Card header -->
+          <div class="flex items-center gap-3 p-3 pb-2">
+            <div class="avatar" :class="'avatar-' + p.colorIdx">{{ p.name[0].toUpperCase() }}</div>
+            <div class="flex-1">
+              <div class="font-semibold text-base" style="color:#e2d8c0">{{ p.name }}</div>
+              <div class="text-sm" :class="scoreClass(playerScores[p.id])">
+                Total: <strong>{{ playerScores[p.id] }}</strong> pts
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs muted">Cette manche</div>
+              <div class="font-bold text-lg" :class="scoreClass(calculateRoundScore(p.id))">
+                {{ calculateRoundScore(p.id) > 0 ? '+' : '' }}{{ calculateRoundScore(p.id) }}
+              </div>
+            </div>
+          </div>
+
+          <hr class="gold-divider mx-3" />
+
+          <!-- Bid & Won steppers -->
+          <div class="px-3 pb-3 space-y-3">
+            <!-- Bid -->
+            <div class="flex items-center gap-2">
+              <span class="flex-1 text-sm font-semibold" style="color:#c4b8a0">Annonce (mise)</span>
+              <div class="flex items-center gap-2">
+                <button class="stepper-btn stepper-minus" @click="adjustField(p.id, 'bid', -1, currentRound)" :disabled="roundInputs[p.id].bid <= 0">−</button>
+                <span class="stepper-val">{{ roundInputs[p.id].bid }}</span>
+                <button class="stepper-btn stepper-plus" @click="adjustField(p.id, 'bid', 1, currentRound)" :disabled="roundInputs[p.id].bid >= currentRound">+</button>
+              </div>
+            </div>
+            <!-- Won -->
+            <div class="flex items-center gap-2">
+              <span class="flex-1 text-sm font-semibold" style="color:#c4b8a0">Plis remportés</span>
+              <div class="flex items-center gap-2">
+                <button class="stepper-btn stepper-minus" @click="adjustField(p.id, 'won', -1, currentRound)" :disabled="roundInputs[p.id].won <= 0">−</button>
+                <span class="stepper-val">{{ roundInputs[p.id].won }}</span>
+                <button class="stepper-btn stepper-plus" @click="adjustField(p.id, 'won', 1, currentRound)" :disabled="roundInputs[p.id].won >= currentRound">+</button>
+              </div>
+            </div>
+
+            <!-- Expandable bonuses -->
+            <button
+              class="flex items-center gap-2 w-full text-sm mt-1"
+              style="color:#d4af37; background:rgba(212,175,55,0.07); border:1px solid rgba(212,175,55,0.2); border-radius:8px; padding:7px 10px"
+              @click="toggleBonusPanel(p.id)"
+            >
+              <span class="flex-1 text-left pirate-font text-base">Bonus spéciaux</span>
+              <span class="bonus-arrow" :class="{ open: openBonus[p.id] }">▾</span>
+            </button>
+
+            <div v-if="openBonus[p.id]" class="space-y-2 pl-1 fade-in">
+              <!-- 14 cards -->
+              <div class="flex items-center gap-2">
+                <span class="flex-1 text-sm" style="color:#c4b8a0">Cartes 14 capturées <span class="muted">(+10/carte)</span></span>
+                <div class="flex items-center gap-2">
+                  <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'cards14', -1, 99)" :disabled="roundInputs[p.id].cards14 <= 0">−</button>
+                  <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].cards14 }}</span>
+                  <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'cards14', 1, 99)">+</button>
+                </div>
+              </div>
+
+              <!-- Mermaid captures SK -->
+              <div class="flex items-center gap-2">
+                <span class="flex-1 text-sm" style="color:#c4b8a0">Sirène capture Skull King <span class="muted">(+40)</span></span>
+                <label class="toggle-wrap" @click="roundInputs[p.id].mermaidCapSK = !roundInputs[p.id].mermaidCapSK">
+                  <div class="toggle-track" :class="{ on: roundInputs[p.id].mermaidCapSK }">
+                    <div class="toggle-thumb"></div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- SK captures pirates -->
+              <div class="flex items-center gap-2">
+                <span class="flex-1 text-sm" style="color:#c4b8a0">Skull King capture pirates <span class="muted">(+30/pirate)</span></span>
+                <div class="flex items-center gap-2">
+                  <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'skCapPirates', -1, 99)" :disabled="roundInputs[p.id].skCapPirates <= 0">−</button>
+                  <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].skCapPirates }}</span>
+                  <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'skCapPirates', 1, 99)">+</button>
+                </div>
+              </div>
+
+              <!-- Pirate captures mermaids -->
+              <div class="flex items-center gap-2">
+                <span class="flex-1 text-sm" style="color:#c4b8a0">Pirate capture sirènes <span class="muted">(+20/sirène)</span></span>
+                <div class="flex items-center gap-2">
+                  <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'pirateCapMermaids', -1, 99)" :disabled="roundInputs[p.id].pirateCapMermaids <= 0">−</button>
+                  <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].pirateCapMermaids }}</span>
+                  <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'pirateCapMermaids', 1, 99)">+</button>
+                </div>
+              </div>
+
+              <!-- Extension cards -->
+              <div v-if="extensionEnabled">
+                <hr class="gold-divider" />
+                <div class="text-xs muted mb-2">Cartes extension (si pari correct)</div>
+
+                <!-- Carte 8 : +5 -->
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-1 text-sm" style="color:#c4b8a0">Carte 8 remportée <span class="score-pos font-bold">(+5/carte)</span></span>
+                  <div class="flex items-center gap-2">
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'card8', -1, 99)" :disabled="roundInputs[p.id].card8 <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].card8 }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'card8', 1, 99)">+</button>
+                  </div>
+                </div>
+
+                <!-- Carte 7 : -5 -->
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-1 text-sm" style="color:#c4b8a0">Carte 7 remportée <span class="score-neg font-bold">(-5/carte)</span></span>
+                  <div class="flex items-center gap-2">
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'card7', -1, 99)" :disabled="roundInputs[p.id].card7 <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].card7 }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'card7', 1, 99)">+</button>
+                  </div>
+                </div>
+
+                <!-- Second capturé par SK ou Sirène : +30 -->
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-1 text-sm" style="color:#c4b8a0">Second capturé par SK/Sirène <span class="score-pos font-bold">(+30)</span></span>
+                  <div class="flex items-center gap-2">
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'secondCaptured', -1, 99)" :disabled="roundInputs[p.id].secondCaptured <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].secondCaptured }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'secondCaptured', 1, 99)">+</button>
+                  </div>
+                </div>
+
+                <div class="text-xs muted mt-2 mb-1">Cartes Butin (toujours)</div>
+
+                <!-- Butin +10 -->
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-pos font-bold">+10</span></span>
+                  <div class="flex items-center gap-2">
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP10', -1, 99)" :disabled="roundInputs[p.id].lootP10 <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootP10 }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP10', 1, 99)">+</button>
+                  </div>
+                </div>
+
+                <!-- Butin +5 -->
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-pos font-bold">+5</span></span>
+                  <div class="flex items-center gap-2">
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP5', -1, 99)" :disabled="roundInputs[p.id].lootP5 <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootP5 }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP5', 1, 99)">+</button>
+                  </div>
+                </div>
+
+                <!-- Butin -5 -->
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-neg font-bold">-5</span></span>
+                  <div class="flex items-center gap-2">
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM5', -1, 99)" :disabled="roundInputs[p.id].lootM5 <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootM5 }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM5', 1, 99)">+</button>
+                  </div>
+                </div>
+
+                <!-- Butin -10 -->
+                <div class="flex items-center gap-2 mb-2">
+                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-neg font-bold">-10</span></span>
+                  <div class="flex items-center gap-2">
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM10', -1, 99)" :disabled="roundInputs[p.id].lootM10 <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootM10 }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM10', 1, 99)">+</button>
+                  </div>
+                </div>
+
+                <div class="text-xs muted mt-2 mb-1">Casier de Davy Jones (toujours)</div>
+                <!-- Davy Jones : +20 par léviathan détruit -->
+                <div class="flex items-center gap-2">
+                  <span class="flex-1 text-sm" style="color:#c4b8a0">Léviathans détruits <span class="score-pos font-bold">(+20/léviathan)</span></span>
+                  <div class="flex items-center gap-2">
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'davyJones', -1, 99)" :disabled="roundInputs[p.id].davyJones <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].davyJones }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'davyJones', 1, 99)">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advance button -->
+      <button class="btn-primary w-full py-4 rounded-xl text-xl" @click="validateRound">
+        {{ currentRound < 10 ? '⚓ Manche suivante ⚓' : '🏴‍☠️ Terminer la partie 🏴‍☠️' }}
+      </button>
+    </div>
+
+    <!-- ==================== PHASE 3: RECAP ==================== -->
+    <div v-if="phase === 'recap'" class="fade-in">
+      <div class="text-center mb-6">
+        <div class="text-4xl mb-2">🏴‍☠️</div>
+        <h1 class="pirate-font text-4xl gold-text" style="text-shadow:0 0 30px rgba(212,175,55,0.5)">Fin de la Partie!</h1>
+      </div>
+
+      <!-- Podium -->
+      <div class="card card-gold p-5 mb-5">
+        <h2 class="pirate-font text-2xl gold-text text-center mb-4">Classement Final</h2>
+        <div class="space-y-3">
+          <div
+            v-for="(p, i) in sortedPlayers"
+            :key="p.id"
+            class="flex items-center gap-3 py-2 px-3 rounded-lg"
+            :style="i === 0 ? 'background:rgba(212,175,55,0.12); border:1px solid rgba(212,175,55,0.3)' : 'background:rgba(255,255,255,0.03)'"
+          >
+            <span class="text-2xl w-8 text-center">{{ ['🥇','🥈','🥉'][i] || (i+1)+'.' }}</span>
+            <div class="avatar" :class="'avatar-' + p.colorIdx">{{ p.name[0].toUpperCase() }}</div>
+            <span class="flex-1 font-semibold text-base" :class="i === 0 ? 'gold-text' : ''">{{ p.name }}</span>
+            <span class="font-bold text-lg" :class="scoreClass(playerScores[p.id])">{{ playerScores[p.id] }} pts</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Winner announcement -->
+      <div class="card p-4 mb-5 text-center" style="border:1px solid rgba(212,175,55,0.4); background: linear-gradient(145deg,#12203a,#1a2c4e)">
+        <div class="text-3xl mb-1">👑</div>
+        <p class="pirate-font text-2xl gold-text">{{ sortedPlayers[0]?.name }}</p>
+        <p class="muted text-sm">remporte la victoire avec {{ playerScores[sortedPlayers[0]?.id] }} points !</p>
+      </div>
+
+      <!-- Full score table -->
+      <div class="card card-gold mb-5">
+        <h2 class="pirate-font text-xl gold-text p-4 pb-2">Tableau des scores</h2>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th style="text-align:left">Joueur</th>
+                <th v-for="r in 10" :key="r">M{{ r }}</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="p in sortedPlayers" :key="p.id">
+                <td>
+                  <div class="flex items-center gap-2">
+                    <div class="avatar" :class="'avatar-' + p.colorIdx" style="width:22px;height:22px;font-size:0.65rem;border-width:1px">{{ p.name[0].toUpperCase() }}</div>
+                    <span>{{ p.name }}</span>
+                  </div>
+                </td>
+                <td v-for="r in 10" :key="r" class="text-center">
+                  <span :class="getRoundScore(p.id, r-1) === null ? 'muted' : scoreClass(getRoundScore(p.id, r-1))">
+                    {{ getRoundScore(p.id, r-1) === null ? '—' : (getRoundScore(p.id, r-1) > 0 ? '+' : '') + getRoundScore(p.id, r-1) }}
+                  </span>
+                </td>
+                <td class="text-center font-bold" :class="scoreClass(playerScores[p.id])">{{ playerScores[p.id] }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Round breakdown -->
+      <div class="card card-gold mb-6 p-4">
+        <h2 class="pirate-font text-xl gold-text mb-3">Détail par manche</h2>
+        <div v-for="(round, idx) in history" :key="idx" class="mb-3">
+          <div class="text-sm font-semibold gold-text mb-1">Manche {{ idx + 1 }}</div>
+          <div class="space-y-1">
+            <div v-for="p in players" :key="p.id" class="flex items-center gap-2 text-sm py-1 px-2 rounded" style="background:rgba(255,255,255,0.03)">
+              <div class="avatar" :class="'avatar-' + p.colorIdx" style="width:20px;height:20px;font-size:0.6rem;border-width:1px">{{ p.name[0].toUpperCase() }}</div>
+              <span class="flex-1">{{ p.name }}</span>
+              <span class="muted">Annonce: {{ round.inputs[p.id]?.bid ?? '—' }} / Plis: {{ round.inputs[p.id]?.won ?? '—' }}</span>
+              <span class="font-bold" :class="scoreClass(round.scores[p.id])">{{ round.scores[p.id] > 0 ? '+' : '' }}{{ round.scores[p.id] }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- New game -->
+      <button class="btn-primary w-full py-4 rounded-xl text-xl" @click="newGame">
+        ⚓ Nouvelle Partie ⚓
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const { createApp, reactive, ref, computed } = Vue;
+
+createApp({
+  setup() {
+    // ---- State ----
+    const phase = ref('setup');
+    const extensionEnabled = ref(false);
+    const newPlayerName = ref('');
+    const players = reactive([]);
+    const currentRound = ref(1);
+    const history = reactive([]); // array of { inputs, scores }
+    const roundInputs = reactive({});
+    const openBonus = reactive({});
+    const showScores = ref(false);
+
+    let nextId = 1;
+    const colorCount = 8;
+
+
+    // ---- Players ----
+    function addPlayer() {
+      const name = newPlayerName.value.trim();
+      if (!name || players.length >= 8) return;
+      const id = nextId++;
+      players.push({ id, name, colorIdx: players.length % colorCount });
+      newPlayerName.value = '';
+    }
+
+    function removePlayer(id) {
+      const idx = players.findIndex(p => p.id === id);
+      if (idx !== -1) players.splice(idx, 1);
+      // re-assign color indices
+      players.forEach((p, i) => { p.colorIdx = i % colorCount; });
+    }
+
+    // ---- Init inputs for a player ----
+    function initInputs(playerId) {
+      roundInputs[playerId] = {
+        bid: 0, won: 0,
+        cards14: 0, mermaidCapSK: false,
+        skCapPirates: 0, pirateCapMermaids: 0,
+        card8: 0, card7: 0, secondCaptured: 0, davyJones: 0,
+        lootP10: 0, lootP5: 0, lootM5: 0, lootM10: 0,
+      };
+    }
+
+    // ---- Game flow ----
+    function startGame() {
+      if (players.length < 2) return;
+      currentRound.value = 1;
+      history.splice(0);
+      players.forEach(p => {
+        initInputs(p.id);
+        openBonus[p.id] = false;
+      });
+      showScores.value = false;
+      phase.value = 'playing';
+    }
+
+    function toggleBonusPanel(id) {
+      openBonus[id] = !openBonus[id];
+    }
+
+    // ---- Stepper ----
+    function adjustField(playerId, field, delta, max) {
+      const inp = roundInputs[playerId];
+      const cur = inp[field] === true || inp[field] === false ? (inp[field] ? 1 : 0) : inp[field];
+      const next = Math.max(0, Math.min(max, (typeof inp[field] === 'boolean' ? (inp[field] ? 1 : 0) : inp[field]) + delta));
+      inp[field] = next;
+    }
+
+    // ---- Score calculation ----
+    function calculateRoundScore(playerId) {
+      const inp = roundInputs[playerId];
+      const bid = inp.bid;
+      const won = inp.won;
+      const round = currentRound.value;
+
+      let score = 0;
+
+      if (bid === 0) {
+        score = won === 0 ? 10 * round : -10 * round;
+      } else {
+        if (won === bid) {
+          score = 20 * bid;
+          // bonuses
+          score += inp.cards14 * 10;
+          if (inp.mermaidCapSK) score += 40;
+          score += inp.skCapPirates * 30;
+          score += inp.pirateCapMermaids * 20;
+        } else {
+          score = -10 * Math.abs(bid - won);
+        }
+      }
+
+      // Extension (cartes 7/8/Second : si pari correct ; Casier de Davy Jones : toujours)
+      if (extensionEnabled.value) {
+        if (bid > 0 && won === bid) {
+          score += inp.card8 * 5;
+          score -= inp.card7 * 5;
+          score += inp.secondCaptured * 30;
+        }
+        score += inp.davyJones * 20;
+        // Cartes butin (toujours)
+        score += inp.lootP10 * 10;
+        score += inp.lootP5 * 5;
+        score -= inp.lootM5 * 5;
+        score -= inp.lootM10 * 10;
+      }
+
+      return score;
+    }
+
+    function validateRound() {
+      const scores = {};
+      const inputsCopy = {};
+      players.forEach(p => {
+        scores[p.id] = calculateRoundScore(p.id);
+        inputsCopy[p.id] = JSON.parse(JSON.stringify(roundInputs[p.id]));
+      });
+
+      history.push({ scores, inputs: inputsCopy });
+
+      if (currentRound.value >= 10) {
+        phase.value = 'recap';
+      } else {
+        currentRound.value++;
+        players.forEach(p => {
+          initInputs(p.id);
+          openBonus[p.id] = false;
+        });
+      }
+    }
+
+    function goToPreviousRound() {
+      if (history.length === 0) return;
+      const prev = history.pop();
+      if (currentRound.value > 1) currentRound.value--;
+      // Restore inputs
+      players.forEach(p => {
+        if (prev.inputs[p.id]) {
+          roundInputs[p.id] = JSON.parse(JSON.stringify(prev.inputs[p.id]));
+        } else {
+          initInputs(p.id);
+        }
+      });
+    }
+
+    // ---- Computed ----
+    const playerScores = computed(() => {
+      const totals = {};
+      players.forEach(p => { totals[p.id] = 0; });
+      history.forEach(round => {
+        players.forEach(p => {
+          totals[p.id] = (totals[p.id] || 0) + (round.scores[p.id] || 0);
+        });
+      });
+      return totals;
+    });
+
+    const sortedPlayers = computed(() => {
+      return [...players].sort((a, b) => (playerScores.value[b.id] || 0) - (playerScores.value[a.id] || 0));
+    });
+
+    function getRoundScore(playerId, roundIdx) {
+      if (roundIdx >= history.length) return null;
+      return history[roundIdx].scores[playerId] ?? null;
+    }
+
+    function scoreClass(val) {
+      if (val === null || val === undefined) return 'muted';
+      if (val > 0) return 'score-pos';
+      if (val < 0) return 'score-neg';
+      return 'score-zero';
+    }
+
+    function newGame() {
+      players.splice(0);
+      history.splice(0);
+      currentRound.value = 1;
+      extensionEnabled.value = false;
+      newPlayerName.value = '';
+      phase.value = 'setup';
+    }
+
+    return {
+      phase, extensionEnabled, newPlayerName, players,
+      currentRound, history, roundInputs, openBonus, showScores,
+      addPlayer, removePlayer, startGame, toggleBonusPanel,
+      adjustField, calculateRoundScore, validateRound, goToPreviousRound,
+      playerScores, sortedPlayers, getRoundScore, scoreClass, newGame,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>
