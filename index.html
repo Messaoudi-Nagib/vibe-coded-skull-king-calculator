@@ -187,6 +187,39 @@
 
     /* Divider */
     .gold-divider { border: none; border-top: 1px solid rgba(212,175,55,0.2); margin: 12px 0; }
+
+    /* Leave confirmation modal */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 100;
+      background: rgba(4, 8, 18, 0.82);
+      backdrop-filter: blur(4px);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-box {
+      background: linear-gradient(160deg, #10213a, #0d1a30);
+      border: 1px solid rgba(212,175,55,0.45);
+      box-shadow: 0 0 40px rgba(212,175,55,0.12), 0 20px 60px rgba(0,0,0,0.6);
+      border-radius: 16px;
+      padding: 32px 28px 24px;
+      max-width: 340px;
+      width: 100%;
+    }
+    .btn-danger {
+      background: linear-gradient(135deg, #7f1d1d, #991b1b, #7f1d1d);
+      color: #fca5a5;
+      font-weight: 700;
+      font-family: 'Pirata One', cursive;
+      letter-spacing: 0.05em;
+      border: 1px solid rgba(239,68,68,0.4);
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-danger:hover { opacity: 0.85; transform: translateY(-1px); }
+    .btn-danger:active { transform: translateY(0); }
+
+    /* Modal transition */
+    .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
+    .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
   </style>
 </head>
 <body>
@@ -559,16 +592,37 @@
       </div>
 
       <!-- New game -->
-      <button class="btn-primary w-full py-4 rounded-xl text-xl" @click="newGame">
+      <button class="btn-primary w-full py-4 rounded-xl text-xl" @click="confirmLeave(newGame)">
         ⚓ Nouvelle Partie ⚓
       </button>
     </div>
 
   </div>
+
+  <!-- ==================== LEAVE CONFIRMATION MODAL ==================== -->
+  <transition name="modal-fade">
+    <div v-if="showLeaveModal" class="modal-overlay" @click.self="leaveModalCancel">
+      <div class="modal-box fade-in">
+        <div class="text-center mb-2" style="font-size:2.8rem">☠️</div>
+        <h2 class="pirate-font text-2xl gold-text text-center mb-2">Abandonner la partie ?</h2>
+        <p class="text-center mb-6" style="color:#b0a890;font-size:1rem">
+          Les scores en cours seront perdus à jamais<br>dans les abysses…
+        </p>
+        <div class="flex gap-3">
+          <button class="btn-secondary flex-1 py-3 rounded-xl text-base" @click="leaveModalCancel">
+            ↩ Rester à bord
+          </button>
+          <button class="btn-danger flex-1 py-3 rounded-xl text-base" @click="leaveModalConfirm">
+            Abandonner
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
 </div>
 
 <script>
-const { createApp, reactive, ref, computed } = Vue;
+const { createApp, reactive, ref, computed, watch, onMounted, onUnmounted } = Vue;
 
 createApp({
   setup() {
@@ -582,6 +636,8 @@ createApp({
     const roundInputs = reactive({});
     const openBonus = reactive({});
     const showScores = ref(false);
+    const showLeaveModal = ref(false);
+    const leaveModalAction = ref(null); // function to call if confirmed
 
     let nextId = 1;
     const colorCount = 8;
@@ -753,12 +809,89 @@ createApp({
       phase.value = 'setup';
     }
 
+    // ---- Leave / refresh protection ----
+    function confirmLeave(action) {
+      if (phase.value === 'playing' && history.length > 0) {
+        leaveModalAction.value = action;
+        showLeaveModal.value = true;
+      } else {
+        action();
+      }
+    }
+
+    function leaveModalConfirm() {
+      showLeaveModal.value = false;
+      if (leaveModalAction.value) leaveModalAction.value();
+      leaveModalAction.value = null;
+    }
+
+    function leaveModalCancel() {
+      showLeaveModal.value = false;
+      leaveModalAction.value = null;
+    }
+
+    function handleBeforeUnload(e) {
+      if (phase.value === 'playing' && history.length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    }
+
+    function handleKeyboardRefresh(e) {
+      if (phase.value !== 'playing' || history.length === 0) return;
+      const isRefresh = e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r');
+      if (!isRefresh) return;
+      e.preventDefault();
+      leaveModalAction.value = () => {
+        window.removeEventListener('beforeunload', handleBeforeUnload);
+        window.location.reload();
+      };
+      showLeaveModal.value = true;
+    }
+
+    // ---- Pull-to-refresh protection (mobile) ----
+    let lastTouchY = 0;
+
+    function handleTouchStart(e) {
+      lastTouchY = e.touches[0].clientY;
+    }
+
+    function handleTouchMove(e) {
+      if (phase.value !== 'playing' || history.length === 0) return;
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+      if (scrollTop <= 0 && e.touches[0].clientY > lastTouchY) {
+        e.preventDefault();
+      }
+    }
+
+    function setRefreshLock(active) {
+      document.body.style.overscrollBehaviorY = active ? 'contain' : '';
+    }
+
+    watch([phase, () => history.length], ([p, hLen]) => setRefreshLock(p === 'playing' && hLen > 0));
+
+    onMounted(() => {
+      window.addEventListener('beforeunload', handleBeforeUnload);
+      window.addEventListener('keydown', handleKeyboardRefresh);
+      document.addEventListener('touchstart', handleTouchStart, { passive: true });
+      document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    });
+    onUnmounted(() => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('keydown', handleKeyboardRefresh);
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      setRefreshLock(false);
+    });
+
     return {
       phase, extensionEnabled, newPlayerName, players,
       currentRound, history, roundInputs, openBonus, showScores,
+      showLeaveModal, leaveModalAction,
       addPlayer, removePlayer, startGame, toggleBonusPanel,
       adjustField, calculateRoundScore, validateRound, goToPreviousRound,
       playerScores, sortedPlayers, getRoundScore, scoreClass, newGame,
+      confirmLeave, leaveModalConfirm, leaveModalCancel,
     };
   }
 }).mount('#app');
