@@ -343,7 +343,7 @@
           <div v-for="(p, i) in sortedPlayers" :key="p.id" class="flex items-center gap-2 text-sm">
             <span class="muted w-4 text-right">{{ i + 1 }}.</span>
             <div class="avatar" :class="'avatar-' + p.colorIdx" style="width:22px;height:22px;font-size:0.65rem;border-width:1px">{{ p.name[0].toUpperCase() }}</div>
-            <span class="flex-1">{{ p.name }}</span>
+            <span class="flex-1 flex items-center gap-1">{{ p.name }}<span v-if="p.id === starterPlayerId" title="Commence la manche" style="color:#f6c90e;font-size:0.7rem">⚓</span></span>
             <span class="font-bold" :class="scoreClass(playerScores[p.id])">{{ playerScores[p.id] }}</span>
           </div>
         </div>
@@ -356,7 +356,7 @@
           <div class="flex items-center gap-3 p-3 pb-2">
             <div class="avatar" :class="'avatar-' + p.colorIdx">{{ p.name[0].toUpperCase() }}</div>
             <div class="flex-1">
-              <div class="font-semibold text-base" style="color:#e2d8c0">{{ p.name }}</div>
+              <div class="font-semibold text-base flex items-center gap-1" style="color:#e2d8c0">{{ p.name }}<span v-if="p.id === starterPlayerId" title="Commence la manche" style="color:#f6c90e;font-size:0.8rem">⚓</span></div>
               <div class="text-sm" :class="scoreClass(playerScores[p.id])">
                 Total: <strong>{{ playerScores[p.id] }}</strong> pts
               </div>
@@ -846,6 +846,11 @@ createApp({
       return [...players].sort((a, b) => (playerScores.value[b.id] || 0) - (playerScores.value[a.id] || 0));
     });
 
+    const starterPlayerId = computed(() => {
+      if (players.length === 0) return null;
+      return players[(currentRound.value - 1) % players.length].id;
+    });
+
     function getRoundScore(playerId, roundIdx) {
       if (roundIdx >= history.length) return null;
       return history[roundIdx].scores[playerId] ?? null;
@@ -992,7 +997,7 @@ createApp({
       showLeaveModal, leaveModalAction, showRoundWarning,
       addPlayer, removePlayer, startGame, toggleBonusPanel,
       adjustField, calculateRoundScore, validateRound, confirmValidateRound, goToPreviousRound,
-      playerScores, sortedPlayers, totalWonThisRound, getRoundScore, scoreClass, newGame,
+      playerScores, sortedPlayers, totalWonThisRound, getRoundScore, scoreClass, starterPlayerId, newGame,
       confirmLeave, leaveModalConfirm, leaveModalCancel,
     };
   }
