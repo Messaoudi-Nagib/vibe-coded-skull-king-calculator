@@ -10,6 +10,7 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <style>
     * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
     body {
       background: radial-gradient(ellipse at top, #0d1f3c 0%, #070d1a 70%);
       min-height: 100vh;
@@ -220,6 +221,19 @@
     /* Modal transition */
     .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
     .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+    /* Confetti canvas */
+    #confetti-canvas { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+
+    /* Rascal bet selector */
+    .rascal-btn {
+      padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700;
+      border: 1px solid rgba(212,175,55,0.3); color: #b0a060;
+      background: rgba(212,175,55,0.05); cursor: pointer; transition: all 0.15s;
+    }
+    .rascal-btn.active {
+      background: rgba(212,175,55,0.2); border-color: rgba(212,175,55,0.6); color: #d4af37;
+    }
   </style>
 </head>
 <body>
@@ -243,7 +257,18 @@
           </div>
           <span class="text-base font-semibold" style="color:#e2d8c0">Extension Skull King</span>
         </label>
-        <p class="text-sm muted mt-2 ml-14" v-if="extensionEnabled">Cartes 7/8, Second, Casier de Davy Jones activés.</p>
+        <p class="text-sm muted mt-2 ml-14" v-if="extensionEnabled">Cartes 7/8, Second, Rascal, Butin, Casier de Davy Jones activés.</p>
+      </div>
+
+      <!-- Bonus always enabled toggle -->
+      <div class="card card-gold p-4 mb-5">
+        <label class="toggle-wrap" @click="bonusAlwaysEnabled = !bonusAlwaysEnabled">
+          <div class="toggle-track" :class="{ on: bonusAlwaysEnabled }">
+            <div class="toggle-thumb"></div>
+          </div>
+          <span class="text-base font-semibold" style="color:#e2d8c0">Bonus si pari raté</span>
+        </label>
+        <p class="text-sm muted mt-2 ml-14">Les bonus spéciaux s'appliquent même si le pari est échoué.</p>
       </div>
 
       <!-- Add players -->
@@ -291,7 +316,7 @@
     <div v-if="phase === 'playing'" class="fade-in">
 
       <!-- Header -->
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center justify-between mb-2">
         <button class="btn-secondary px-3 py-2 rounded-lg text-sm" @click="goToPreviousRound" :disabled="currentRound <= 1 && history.length === 0">
           ← Retour
         </button>
@@ -302,6 +327,12 @@
         </div>
         <button class="btn-secondary px-3 py-2 rounded-lg text-sm" @click="showScores = !showScores">
           {{ showScores ? 'Masquer' : 'Scores' }}
+        </button>
+      </div>
+      <!-- Abandon button -->
+      <div class="flex justify-center mb-4">
+        <button class="btn-danger text-sm px-4 py-1.5 rounded-lg" @click="confirmLeave(newGame)" style="font-family:'Pirata One',cursive;letter-spacing:0.05em;font-size:0.82rem">
+          ⛵ Abandonner la partie
         </button>
       </div>
 
@@ -374,7 +405,7 @@
             <div v-if="openBonus[p.id]" class="space-y-2 pl-1 fade-in">
               <!-- 14 cards -->
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-sm" style="color:#c4b8a0">Cartes 14 capturées <span class="muted">(+10/carte)</span></span>
+                <span class="flex-1 text-sm" style="color:#c4b8a0" title="Cartes 14 capturées (+10/carte)">🃏 ×14 <span class="muted text-xs">(+10)</span></span>
                 <div class="flex items-center gap-2">
                   <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'cards14', -1, 99)" :disabled="roundInputs[p.id].cards14 <= 0">−</button>
                   <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].cards14 }}</span>
@@ -384,7 +415,7 @@
 
               <!-- Mermaid captures SK -->
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-sm" style="color:#c4b8a0">Sirène capture Skull King <span class="muted">(+40)</span></span>
+                <span class="flex-1 text-sm" style="color:#c4b8a0" title="Sirène capture Skull King (+40)">🧜‍♀️☠️ <span class="muted text-xs">(+40)</span></span>
                 <label class="toggle-wrap" @click="roundInputs[p.id].mermaidCapSK = !roundInputs[p.id].mermaidCapSK">
                   <div class="toggle-track" :class="{ on: roundInputs[p.id].mermaidCapSK }">
                     <div class="toggle-thumb"></div>
@@ -394,7 +425,7 @@
 
               <!-- SK captures pirates -->
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-sm" style="color:#c4b8a0">Skull King capture pirates <span class="muted">(+30/pirate)</span></span>
+                <span class="flex-1 text-sm" style="color:#c4b8a0" title="Skull King capture pirates (+30/pirate)">☠️🏴‍☠️ <span class="muted text-xs">(+30)</span></span>
                 <div class="flex items-center gap-2">
                   <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'skCapPirates', -1, 99)" :disabled="roundInputs[p.id].skCapPirates <= 0">−</button>
                   <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].skCapPirates }}</span>
@@ -404,7 +435,7 @@
 
               <!-- Pirate captures mermaids -->
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-sm" style="color:#c4b8a0">Pirate capture sirènes <span class="muted">(+20/sirène)</span></span>
+                <span class="flex-1 text-sm" style="color:#c4b8a0" title="Pirate capture sirènes (+20/sirène)">🏴‍☠️🧜‍♀️ <span class="muted text-xs">(+20)</span></span>
                 <div class="flex items-center gap-2">
                   <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'pirateCapMermaids', -1, 99)" :disabled="roundInputs[p.id].pirateCapMermaids <= 0">−</button>
                   <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].pirateCapMermaids }}</span>
@@ -415,11 +446,11 @@
               <!-- Extension cards -->
               <div v-if="extensionEnabled">
                 <hr class="gold-divider" />
-                <div class="text-xs muted mb-2">Cartes extension (si pari correct)</div>
+                <div class="text-xs muted mb-2">Extension (si pari correct)</div>
 
                 <!-- Carte 8 : +5 -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Carte 8 remportée <span class="score-pos font-bold">(+5/carte)</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" title="Carte 8 remportée (+5/carte)">8️⃣ <span class="score-pos text-xs font-bold">(+5)</span></span>
                   <div class="flex items-center gap-2">
                     <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'card8', -1, 99)" :disabled="roundInputs[p.id].card8 <= 0">−</button>
                     <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].card8 }}</span>
@@ -429,7 +460,7 @@
 
                 <!-- Carte 7 : -5 -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Carte 7 remportée <span class="score-neg font-bold">(-5/carte)</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" title="Carte 7 remportée (-5/carte)">7️⃣ <span class="score-neg text-xs font-bold">(-5)</span></span>
                   <div class="flex items-center gap-2">
                     <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'card7', -1, 99)" :disabled="roundInputs[p.id].card7 <= 0">−</button>
                     <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].card7 }}</span>
@@ -439,7 +470,7 @@
 
                 <!-- Second capturé par SK ou Sirène : +30 -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Second capturé par SK/Sirène <span class="score-pos font-bold">(+30)</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" title="Second capturé par SK/Sirène (+30)">⚔️ Second <span class="score-pos text-xs font-bold">(+30)</span></span>
                   <div class="flex items-center gap-2">
                     <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'secondCaptured', -1, 99)" :disabled="roundInputs[p.id].secondCaptured <= 0">−</button>
                     <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].secondCaptured }}</span>
@@ -447,52 +478,31 @@
                   </div>
                 </div>
 
-                <div class="text-xs muted mt-2 mb-1">Cartes Butin (toujours)</div>
-
-                <!-- Butin +10 -->
+                <!-- Rascal de Roatán -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-pos font-bold">+10</span></span>
-                  <div class="flex items-center gap-2">
-                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP10', -1, 99)" :disabled="roundInputs[p.id].lootP10 <= 0">−</button>
-                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootP10 }}</span>
-                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP10', 1, 99)">+</button>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" title="Rascal de Roatán : pari ±10 ou ±20 pts">🎲 Rascal <span class="muted text-xs">(±pts)</span></span>
+                  <div class="flex items-center gap-1">
+                    <button class="rascal-btn" :class="{ active: roundInputs[p.id].rascalBet === 0 }" @click="roundInputs[p.id].rascalBet = 0">0</button>
+                    <button class="rascal-btn" :class="{ active: roundInputs[p.id].rascalBet === 10 }" @click="roundInputs[p.id].rascalBet = 10">10</button>
+                    <button class="rascal-btn" :class="{ active: roundInputs[p.id].rascalBet === 20 }" @click="roundInputs[p.id].rascalBet = 20">20</button>
                   </div>
                 </div>
 
-                <!-- Butin +5 -->
+                <div class="text-xs muted mt-2 mb-1">Toujours</div>
+
+                <!-- Butin : +20/carte -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-pos font-bold">+5</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" title="Cartes Butin (+20/carte)">💰 Butin <span class="score-pos text-xs font-bold">(+20)</span></span>
                   <div class="flex items-center gap-2">
-                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP5', -1, 99)" :disabled="roundInputs[p.id].lootP5 <= 0">−</button>
-                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootP5 }}</span>
-                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP5', 1, 99)">+</button>
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'loot', -1, 99)" :disabled="roundInputs[p.id].loot <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].loot }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'loot', 1, 99)">+</button>
                   </div>
                 </div>
 
-                <!-- Butin -5 -->
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-neg font-bold">-5</span></span>
-                  <div class="flex items-center gap-2">
-                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM5', -1, 99)" :disabled="roundInputs[p.id].lootM5 <= 0">−</button>
-                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootM5 }}</span>
-                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM5', 1, 99)">+</button>
-                  </div>
-                </div>
-
-                <!-- Butin -10 -->
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-neg font-bold">-10</span></span>
-                  <div class="flex items-center gap-2">
-                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM10', -1, 99)" :disabled="roundInputs[p.id].lootM10 <= 0">−</button>
-                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootM10 }}</span>
-                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM10', 1, 99)">+</button>
-                  </div>
-                </div>
-
-                <div class="text-xs muted mt-2 mb-1">Casier de Davy Jones (toujours)</div>
                 <!-- Davy Jones : +20 par léviathan détruit -->
                 <div class="flex items-center gap-2">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Léviathans détruits <span class="score-pos font-bold">(+20/léviathan)</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" title="Casier de Davy Jones : léviathans détruits (+20)">🦑 Léviathan <span class="score-pos text-xs font-bold">(+20)</span></span>
                   <div class="flex items-center gap-2">
                     <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'davyJones', -1, 99)" :disabled="roundInputs[p.id].davyJones <= 0">−</button>
                     <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].davyJones }}</span>
@@ -513,6 +523,8 @@
 
     <!-- ==================== PHASE 3: RECAP ==================== -->
     <div v-if="phase === 'recap'" class="fade-in">
+      <!-- Confetti canvas -->
+      <canvas id="confetti-canvas"></canvas>
       <div class="text-center mb-6">
         <div class="text-4xl mb-2">🏴‍☠️</div>
         <h1 class="pirate-font text-4xl gold-text" style="text-shadow:0 0 30px rgba(212,175,55,0.5)">Fin de la Partie!</h1>
@@ -599,6 +611,29 @@
 
   </div>
 
+  <!-- ==================== ROUND WARNING MODAL ==================== -->
+  <transition name="modal-fade">
+    <div v-if="showRoundWarning" class="modal-overlay" @click.self="showRoundWarning = false">
+      <div class="modal-box fade-in">
+        <div class="text-center mb-2" style="font-size:2.8rem">🦑</div>
+        <h2 class="pirate-font text-2xl gold-text text-center mb-2">Plis inhabituels</h2>
+        <p class="text-center mb-6" style="color:#b0a890;font-size:1rem">
+          Total des plis remportés : <strong class="gold-text">{{ totalWonThisRound }}</strong><br>
+          Numéro de la manche : <strong class="gold-text">{{ currentRound }}</strong><br><br>
+          Est-ce dû à un Kraken ou une autre carte spéciale ?
+        </p>
+        <div class="flex gap-3">
+          <button class="btn-secondary flex-1 py-3 rounded-xl text-base" @click="showRoundWarning = false">
+            ← Corriger
+          </button>
+          <button class="btn-primary flex-1 py-3 rounded-xl text-base" @click="confirmValidateRound">
+            Confirmer ✓
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
+
   <!-- ==================== LEAVE CONFIRMATION MODAL ==================== -->
   <transition name="modal-fade">
     <div v-if="showLeaveModal" class="modal-overlay" @click.self="leaveModalCancel">
@@ -629,6 +664,7 @@ createApp({
     // ---- State ----
     const phase = ref('setup');
     const extensionEnabled = ref(false);
+    const bonusAlwaysEnabled = ref(false);
     const newPlayerName = ref('');
     const players = reactive([]);
     const currentRound = ref(1);
@@ -638,6 +674,8 @@ createApp({
     const showScores = ref(false);
     const showLeaveModal = ref(false);
     const leaveModalAction = ref(null); // function to call if confirmed
+    const showRoundWarning = ref(false);
+    let confettiFrame = null;
 
     let nextId = 1;
     const colorCount = 8;
@@ -666,7 +704,7 @@ createApp({
         cards14: 0, mermaidCapSK: false,
         skCapPirates: 0, pirateCapMermaids: 0,
         card8: 0, card7: 0, secondCaptured: 0, davyJones: 0,
-        lootP10: 0, lootP5: 0, lootM5: 0, lootM10: 0,
+        loot: 0, rascalBet: 0,
       };
     }
 
@@ -701,43 +739,59 @@ createApp({
       const bid = inp.bid;
       const won = inp.won;
       const round = currentRound.value;
+      const bidSucceeded = bid === 0 ? won === 0 : won === bid;
 
       let score = 0;
 
       if (bid === 0) {
         score = won === 0 ? 10 * round : -10 * round;
       } else {
-        if (won === bid) {
-          score = 20 * bid;
-          // bonuses
-          score += inp.cards14 * 10;
-          if (inp.mermaidCapSK) score += 40;
-          score += inp.skCapPirates * 30;
-          score += inp.pirateCapMermaids * 20;
-        } else {
-          score = -10 * Math.abs(bid - won);
-        }
+        score = won === bid ? 20 * bid : -10 * Math.abs(bid - won);
       }
 
-      // Extension (cartes 7/8/Second : si pari correct ; Casier de Davy Jones : toujours)
+      // Bonuses (apply if bid succeeded OR bonusAlwaysEnabled; only for bid > 0)
+      if (bid > 0 && (bidSucceeded || bonusAlwaysEnabled.value)) {
+        score += inp.cards14 * 10;
+        if (inp.mermaidCapSK) score += 40;
+        score += inp.skCapPirates * 30;
+        score += inp.pirateCapMermaids * 20;
+      }
+
+      // Extension (cartes 7/8/Second : si pari correct ; Butin + Davy Jones : toujours)
       if (extensionEnabled.value) {
-        if (bid > 0 && won === bid) {
+        if (bid > 0 && (bidSucceeded || bonusAlwaysEnabled.value)) {
           score += inp.card8 * 5;
           score -= inp.card7 * 5;
           score += inp.secondCaptured * 30;
         }
+        // Rascal de Roatán (toujours, ±rascalBet)
+        if (inp.rascalBet > 0) {
+          score += bidSucceeded ? inp.rascalBet : -inp.rascalBet;
+        }
+        // Butin +20/carte (toujours)
+        score += inp.loot * 20;
+        // Casier de Davy Jones (toujours)
         score += inp.davyJones * 20;
-        // Cartes butin (toujours)
-        score += inp.lootP10 * 10;
-        score += inp.lootP5 * 5;
-        score -= inp.lootM5 * 5;
-        score -= inp.lootM10 * 10;
       }
 
       return score;
     }
 
     function validateRound() {
+      const totalWon = players.reduce((sum, p) => sum + (roundInputs[p.id]?.won || 0), 0);
+      if (totalWon !== currentRound.value) {
+        showRoundWarning.value = true;
+        return;
+      }
+      doValidateRound();
+    }
+
+    function confirmValidateRound() {
+      showRoundWarning.value = false;
+      doValidateRound();
+    }
+
+    function doValidateRound() {
       const scores = {};
       const inputsCopy = {};
       players.forEach(p => {
@@ -773,6 +827,10 @@ createApp({
     }
 
     // ---- Computed ----
+    const totalWonThisRound = computed(() =>
+      players.reduce((sum, p) => sum + (roundInputs[p.id]?.won || 0), 0)
+    );
+
     const playerScores = computed(() => {
       const totals = {};
       players.forEach(p => { totals[p.id] = 0; });
@@ -805,9 +863,53 @@ createApp({
       history.splice(0);
       currentRound.value = 1;
       extensionEnabled.value = false;
+      bonusAlwaysEnabled.value = false;
       newPlayerName.value = '';
       phase.value = 'setup';
     }
+
+    // ---- Confetti ----
+    function startConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      if (!canvas) return;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const ctx = canvas.getContext('2d');
+      const colors = ['#d4af37','#f59e0b','#4ade80','#3b82f6','#ec4899','#ef4444','#8b5cf6','#fff'];
+      const particles = Array.from({ length: 130 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        w: Math.random() * 13 + 5,
+        h: Math.random() * 6 + 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        speed: Math.random() * 3 + 2,
+        angle: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.15,
+        drift: (Math.random() - 0.5) * 1.5,
+      }));
+      if (confettiFrame) cancelAnimationFrame(confettiFrame);
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          p.y += p.speed; p.x += p.drift; p.angle += p.spin;
+          if (p.y > canvas.height) { p.y = -p.h; p.x = Math.random() * canvas.width; }
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+          ctx.fillStyle = p.color; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        });
+        confettiFrame = requestAnimationFrame(draw);
+      }
+      draw();
+      setTimeout(() => {
+        cancelAnimationFrame(confettiFrame);
+        confettiFrame = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }, 6000);
+    }
+
+    watch(phase, (newPhase) => {
+      if (newPhase === 'recap') setTimeout(startConfetti, 200);
+    });
 
     // ---- Leave / refresh protection ----
     function confirmLeave(action) {
@@ -885,12 +987,12 @@ createApp({
     });
 
     return {
-      phase, extensionEnabled, newPlayerName, players,
+      phase, extensionEnabled, bonusAlwaysEnabled, newPlayerName, players,
       currentRound, history, roundInputs, openBonus, showScores,
-      showLeaveModal, leaveModalAction,
+      showLeaveModal, leaveModalAction, showRoundWarning,
       addPlayer, removePlayer, startGame, toggleBonusPanel,
-      adjustField, calculateRoundScore, validateRound, goToPreviousRound,
-      playerScores, sortedPlayers, getRoundScore, scoreClass, newGame,
+      adjustField, calculateRoundScore, validateRound, confirmValidateRound, goToPreviousRound,
+      playerScores, sortedPlayers, totalWonThisRound, getRoundScore, scoreClass, newGame,
       confirmLeave, leaveModalConfirm, leaveModalCancel,
     };
   }
