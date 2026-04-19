@@ -4,12 +4,42 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Skull King - Calculateur de scores</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="apple-touch-icon" href="favicon.svg" />
+
+  <!-- SEO -->
+  <meta name="description" content="Calculateur de scores (extension incluse) pour le jeu de cartes Skull King. Suivez facilement les points de chaque manche, gérez les bonus et déterminez le grand vainqueur." />
+  <meta name="keywords" content="Skull King, calculateur de scores, jeu de cartes, pirate, score tracker, Grandpa Beck's, extension" />
+  <meta name="robots" content="index, follow" />
+  <meta name="theme-color" content="#0d1f3c" />
+
+  <!-- Open Graph (partage réseaux sociaux) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Skull King - Calculateur de scores" />
+  <meta property="og:description" content="Calculateur de scores pour le jeu de cartes Skull King. Suivez facilement les points de chaque manche, gérez les bonus et déterminez le grand vainqueur." />
+  <meta property="og:locale" content="fr_FR" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Skull King - Calculateur de scores" />
+  <meta name="twitter:description" content="Calculateur de scores pour le jeu de cartes Skull King. Gérez les bonus et suivez les scores manche par manche." />
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+
+  <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+  new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+  j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+  'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+  })(window,document,'script','dataLayer','GTM-PFTWDZ42');</script>
+
   <style>
     * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
     body {
       background: radial-gradient(ellipse at top, #0d1f3c 0%, #070d1a 70%);
       min-height: 100vh;
@@ -220,10 +250,55 @@
     /* Modal transition */
     .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
     .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+    /* Confetti canvas */
+    #confetti-canvas { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
+
+    /* Rascal bet selector */
+    .rascal-btn {
+      padding: 4px 10px; border-radius: 6px; font-size: 0.85rem; font-weight: 700;
+      border: 1px solid rgba(212,175,55,0.3); color: #b0a060;
+      background: rgba(212,175,55,0.05); cursor: pointer; transition: all 0.15s;
+    }
+    .rascal-btn.active {
+      background: rgba(212,175,55,0.2); border-color: rgba(212,175,55,0.6); color: #d4af37;
+    }
+
+    /* Language switcher */
+    .lang-btn {
+      padding: 3px 9px;
+      border: 1px solid rgba(212,175,55,0.3);
+      border-radius: 6px;
+      color: #d4af37;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: monospace;
+      background: rgba(212,175,55,0.05);
+      transition: opacity 0.2s, background 0.2s;
+      letter-spacing: 0.05em;
+    }
+    .lang-btn.active { background: rgba(212,175,55,0.2); opacity: 1; }
+    .lang-btn:not(.active) { opacity: 0.45; }
+    .lang-btn:hover { opacity: 0.8; }
   </style>
 </head>
 <body>
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PFTWDZ42"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <div id="app" class="min-h-screen">
+
+  <!-- Language switcher (always visible) -->
+  <div style="position:fixed;top:12px;right:12px;z-index:50;display:flex;gap:5px;">
+    <button
+      v-for="l in ['fr','en','es']"
+      :key="l"
+      class="lang-btn"
+      :class="{ active: lang === l }"
+      @click="setLang(l)"
+    >{{ l.toUpperCase() }}</button>
+  </div>
+
   <div class="mx-auto px-4 py-6" style="max-width:512px">
 
     <!-- ==================== PHASE 1: SETUP ==================== -->
@@ -232,7 +307,7 @@
       <div class="text-center mb-8">
         <div class="text-5xl mb-2">☠️</div>
         <h1 class="pirate-font text-5xl gold-text" style="text-shadow: 0 0 30px rgba(212,175,55,0.4)">Skull King</h1>
-        <p class="text-lg muted mt-1">Calculateur de Scores</p>
+        <p class="text-lg muted mt-1">{{ t('subtitle') }}</p>
       </div>
 
       <!-- Extension toggle -->
@@ -241,19 +316,30 @@
           <div class="toggle-track" :class="{ on: extensionEnabled }">
             <div class="toggle-thumb"></div>
           </div>
-          <span class="text-base font-semibold" style="color:#e2d8c0">Extension Skull King</span>
+          <span class="text-base font-semibold" style="color:#e2d8c0">{{ t('extensionLabel') }}</span>
         </label>
-        <p class="text-sm muted mt-2 ml-14" v-if="extensionEnabled">Cartes 7/8, Second, Casier de Davy Jones activés.</p>
+        <p class="text-sm muted mt-2 ml-14" v-if="extensionEnabled">{{ t('extensionDesc') }}</p>
+      </div>
+
+      <!-- Bonus always enabled toggle -->
+      <div class="card card-gold p-4 mb-5">
+        <label class="toggle-wrap" @click="bonusAlwaysEnabled = !bonusAlwaysEnabled">
+          <div class="toggle-track" :class="{ on: bonusAlwaysEnabled }">
+            <div class="toggle-thumb"></div>
+          </div>
+          <span class="text-base font-semibold" style="color:#e2d8c0">{{ t('bonusAlwaysLabel') }}</span>
+        </label>
+        <p class="text-sm muted mt-2 ml-14">{{ t('bonusAlwaysDesc') }}</p>
       </div>
 
       <!-- Add players -->
       <div class="card card-gold p-4 mb-5">
-        <h2 class="pirate-font text-xl gold-text mb-3">⚓ Joueurs ({{ players.length }}/8)</h2>
+        <h2 class="pirate-font text-xl gold-text mb-3">{{ tpl('playersHeader', {count: players.length}) }}</h2>
         <div class="flex gap-2 mb-4">
           <input
             class="player-input flex-1"
             v-model="newPlayerName"
-            placeholder="Nom du joueur..."
+            :placeholder="t('playerPlaceholder')"
             @keyup.enter="addPlayer"
             maxlength="16"
           />
@@ -261,9 +347,9 @@
             class="btn-primary px-4 py-2 rounded-lg text-sm"
             @click="addPlayer"
             :disabled="players.length >= 8"
-          >Ajouter</button>
+          >{{ t('addPlayer') }}</button>
         </div>
-        <div v-if="players.length === 0" class="text-center muted py-4 text-sm">Ajoutez au moins 2 joueurs pour commencer.</div>
+        <div v-if="players.length === 0" class="text-center muted py-4 text-sm">{{ t('noPlayers') }}</div>
         <ul class="space-y-2">
           <li
             v-for="(p, i) in players"
@@ -283,36 +369,42 @@
         class="btn-primary w-full py-4 rounded-xl text-xl"
         @click="startGame"
         :disabled="players.length < 2"
-      >⚔️ Commencer la Partie ⚔️</button>
-      <p class="text-center muted text-sm mt-2" v-if="players.length < 2">Il faut au moins 2 joueurs.</p>
+      >{{ t('startGame') }}</button>
+      <p class="text-center muted text-sm mt-2" v-if="players.length < 2">{{ t('needTwoPlayers') }}</p>
     </div>
 
     <!-- ==================== PHASE 2: PLAYING ==================== -->
     <div v-if="phase === 'playing'" class="fade-in">
 
       <!-- Header -->
-      <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center justify-between mb-2">
         <button class="btn-secondary px-3 py-2 rounded-lg text-sm" @click="goToPreviousRound" :disabled="currentRound <= 1 && history.length === 0">
-          ← Retour
+          {{ t('back') }}
         </button>
         <div class="text-center">
           <h2 class="pirate-font text-3xl gold-text" style="text-shadow:0 0 15px rgba(212,175,55,0.35)">
-            Manche {{ currentRound }}/10
+            {{ tpl('roundLabel', {n: currentRound}) }}
           </h2>
         </div>
         <button class="btn-secondary px-3 py-2 rounded-lg text-sm" @click="showScores = !showScores">
-          {{ showScores ? 'Masquer' : 'Scores' }}
+          {{ showScores ? t('hideScores') : t('showScores') }}
+        </button>
+      </div>
+      <!-- Abandon button -->
+      <div class="flex justify-center mb-4">
+        <button class="btn-danger text-sm px-4 py-1.5 rounded-lg" @click="confirmLeave(newGame)" style="font-family:'Pirata One',cursive;letter-spacing:0.05em;font-size:0.82rem">
+          {{ t('abandonBtn') }}
         </button>
       </div>
 
       <!-- Running scores panel -->
       <div v-if="showScores" class="scores-panel mb-4 fade-in">
-        <h3 class="pirate-font text-base gold-text mb-2">Classement actuel</h3>
+        <h3 class="pirate-font text-base gold-text mb-2">{{ t('currentRanking') }}</h3>
         <div class="space-y-1">
           <div v-for="(p, i) in sortedPlayers" :key="p.id" class="flex items-center gap-2 text-sm">
             <span class="muted w-4 text-right">{{ i + 1 }}.</span>
             <div class="avatar" :class="'avatar-' + p.colorIdx" style="width:22px;height:22px;font-size:0.65rem;border-width:1px">{{ p.name[0].toUpperCase() }}</div>
-            <span class="flex-1">{{ p.name }}</span>
+            <span class="flex-1 flex items-center gap-1">{{ p.name }}<span v-if="p.id === starterPlayerId" :title="t('starterTitle')" style="color:#f6c90e;font-size:0.7rem">⚓</span></span>
             <span class="font-bold" :class="scoreClass(playerScores[p.id])">{{ playerScores[p.id] }}</span>
           </div>
         </div>
@@ -325,13 +417,13 @@
           <div class="flex items-center gap-3 p-3 pb-2">
             <div class="avatar" :class="'avatar-' + p.colorIdx">{{ p.name[0].toUpperCase() }}</div>
             <div class="flex-1">
-              <div class="font-semibold text-base" style="color:#e2d8c0">{{ p.name }}</div>
+              <div class="font-semibold text-base flex items-center gap-1" style="color:#e2d8c0">{{ p.name }}<span v-if="p.id === starterPlayerId" :title="t('starterTitle')" style="color:#f6c90e;font-size:0.8rem">⚓</span></div>
               <div class="text-sm" :class="scoreClass(playerScores[p.id])">
-                Total: <strong>{{ playerScores[p.id] }}</strong> pts
+                {{ t('totalColon') }} <strong>{{ playerScores[p.id] }}</strong> pts
               </div>
             </div>
             <div class="text-right">
-              <div class="text-xs muted">Cette manche</div>
+              <div class="text-xs muted">{{ t('thisRound') }}</div>
               <div class="font-bold text-lg" :class="scoreClass(calculateRoundScore(p.id))">
                 {{ calculateRoundScore(p.id) > 0 ? '+' : '' }}{{ calculateRoundScore(p.id) }}
               </div>
@@ -344,7 +436,7 @@
           <div class="px-3 pb-3 space-y-3">
             <!-- Bid -->
             <div class="flex items-center gap-2">
-              <span class="flex-1 text-sm font-semibold" style="color:#c4b8a0">Annonce (mise)</span>
+              <span class="flex-1 text-sm font-semibold" style="color:#c4b8a0">{{ t('bid') }}</span>
               <div class="flex items-center gap-2">
                 <button class="stepper-btn stepper-minus" @click="adjustField(p.id, 'bid', -1, currentRound)" :disabled="roundInputs[p.id].bid <= 0">−</button>
                 <span class="stepper-val">{{ roundInputs[p.id].bid }}</span>
@@ -353,7 +445,7 @@
             </div>
             <!-- Won -->
             <div class="flex items-center gap-2">
-              <span class="flex-1 text-sm font-semibold" style="color:#c4b8a0">Plis remportés</span>
+              <span class="flex-1 text-sm font-semibold" style="color:#c4b8a0">{{ t('won') }}</span>
               <div class="flex items-center gap-2">
                 <button class="stepper-btn stepper-minus" @click="adjustField(p.id, 'won', -1, currentRound)" :disabled="roundInputs[p.id].won <= 0">−</button>
                 <span class="stepper-val">{{ roundInputs[p.id].won }}</span>
@@ -367,14 +459,14 @@
               style="color:#d4af37; background:rgba(212,175,55,0.07); border:1px solid rgba(212,175,55,0.2); border-radius:8px; padding:7px 10px"
               @click="toggleBonusPanel(p.id)"
             >
-              <span class="flex-1 text-left pirate-font text-base">Bonus spéciaux</span>
+              <span class="flex-1 text-left pirate-font text-base">{{ t('specialBonuses') }}</span>
               <span class="bonus-arrow" :class="{ open: openBonus[p.id] }">▾</span>
             </button>
 
             <div v-if="openBonus[p.id]" class="space-y-2 pl-1 fade-in">
               <!-- 14 cards -->
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-sm" style="color:#c4b8a0">Cartes 14 capturées <span class="muted">(+10/carte)</span></span>
+                <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttCards14')">🃏 ×14 <span class="muted text-xs">(+10)</span></span>
                 <div class="flex items-center gap-2">
                   <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'cards14', -1, 99)" :disabled="roundInputs[p.id].cards14 <= 0">−</button>
                   <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].cards14 }}</span>
@@ -384,7 +476,7 @@
 
               <!-- Mermaid captures SK -->
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-sm" style="color:#c4b8a0">Sirène capture Skull King <span class="muted">(+40)</span></span>
+                <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttMermaidCapSK')">🧜‍♀️☠️ <span class="muted text-xs">(+40)</span></span>
                 <label class="toggle-wrap" @click="roundInputs[p.id].mermaidCapSK = !roundInputs[p.id].mermaidCapSK">
                   <div class="toggle-track" :class="{ on: roundInputs[p.id].mermaidCapSK }">
                     <div class="toggle-thumb"></div>
@@ -394,7 +486,7 @@
 
               <!-- SK captures pirates -->
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-sm" style="color:#c4b8a0">Skull King capture pirates <span class="muted">(+30/pirate)</span></span>
+                <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttSKCapPirates')">☠️🏴‍☠️ <span class="muted text-xs">(+30)</span></span>
                 <div class="flex items-center gap-2">
                   <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'skCapPirates', -1, 99)" :disabled="roundInputs[p.id].skCapPirates <= 0">−</button>
                   <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].skCapPirates }}</span>
@@ -404,7 +496,7 @@
 
               <!-- Pirate captures mermaids -->
               <div class="flex items-center gap-2">
-                <span class="flex-1 text-sm" style="color:#c4b8a0">Pirate capture sirènes <span class="muted">(+20/sirène)</span></span>
+                <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttPirateCapMermaids')">🏴‍☠️🧜‍♀️ <span class="muted text-xs">(+20)</span></span>
                 <div class="flex items-center gap-2">
                   <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'pirateCapMermaids', -1, 99)" :disabled="roundInputs[p.id].pirateCapMermaids <= 0">−</button>
                   <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].pirateCapMermaids }}</span>
@@ -415,11 +507,11 @@
               <!-- Extension cards -->
               <div v-if="extensionEnabled">
                 <hr class="gold-divider" />
-                <div class="text-xs muted mb-2">Cartes extension (si pari correct)</div>
+                <div class="text-xs muted mb-2">{{ t('extensionSection') }}</div>
 
-                <!-- Carte 8 : +5 -->
+                <!-- Card 8 : +5 -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Carte 8 remportée <span class="score-pos font-bold">(+5/carte)</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttCard8')">8️⃣ <span class="score-pos text-xs font-bold">(+5)</span></span>
                   <div class="flex items-center gap-2">
                     <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'card8', -1, 99)" :disabled="roundInputs[p.id].card8 <= 0">−</button>
                     <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].card8 }}</span>
@@ -427,9 +519,9 @@
                   </div>
                 </div>
 
-                <!-- Carte 7 : -5 -->
+                <!-- Card 7 : -5 -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Carte 7 remportée <span class="score-neg font-bold">(-5/carte)</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttCard7')">7️⃣ <span class="score-neg text-xs font-bold">(-5)</span></span>
                   <div class="flex items-center gap-2">
                     <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'card7', -1, 99)" :disabled="roundInputs[p.id].card7 <= 0">−</button>
                     <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].card7 }}</span>
@@ -437,9 +529,9 @@
                   </div>
                 </div>
 
-                <!-- Second capturé par SK ou Sirène : +30 -->
+                <!-- Second captured by SK or Mermaid : +30 -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Second capturé par SK/Sirène <span class="score-pos font-bold">(+30)</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttSecond')">⚔️ Second <span class="score-pos text-xs font-bold">(+30)</span></span>
                   <div class="flex items-center gap-2">
                     <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'secondCaptured', -1, 99)" :disabled="roundInputs[p.id].secondCaptured <= 0">−</button>
                     <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].secondCaptured }}</span>
@@ -447,52 +539,31 @@
                   </div>
                 </div>
 
-                <div class="text-xs muted mt-2 mb-1">Cartes Butin (toujours)</div>
-
-                <!-- Butin +10 -->
+                <!-- Rascal de Roatán -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-pos font-bold">+10</span></span>
-                  <div class="flex items-center gap-2">
-                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP10', -1, 99)" :disabled="roundInputs[p.id].lootP10 <= 0">−</button>
-                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootP10 }}</span>
-                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP10', 1, 99)">+</button>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttRascal')">🎲 Rascal <span class="muted text-xs">(±pts)</span></span>
+                  <div class="flex items-center gap-1">
+                    <button class="rascal-btn" :class="{ active: roundInputs[p.id].rascalBet === 0 }" @click="roundInputs[p.id].rascalBet = 0">0</button>
+                    <button class="rascal-btn" :class="{ active: roundInputs[p.id].rascalBet === 10 }" @click="roundInputs[p.id].rascalBet = 10">10</button>
+                    <button class="rascal-btn" :class="{ active: roundInputs[p.id].rascalBet === 20 }" @click="roundInputs[p.id].rascalBet = 20">20</button>
                   </div>
                 </div>
 
-                <!-- Butin +5 -->
+                <div class="text-xs muted mt-2 mb-1">{{ t('alwaysSection') }}</div>
+
+                <!-- Loot : +20/card -->
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-pos font-bold">+5</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttLoot')">💰 {{ t('loot') }} <span class="score-pos text-xs font-bold">(+20)</span></span>
                   <div class="flex items-center gap-2">
-                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP5', -1, 99)" :disabled="roundInputs[p.id].lootP5 <= 0">−</button>
-                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootP5 }}</span>
-                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootP5', 1, 99)">+</button>
+                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'loot', -1, 99)" :disabled="roundInputs[p.id].loot <= 0">−</button>
+                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].loot }}</span>
+                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'loot', 1, 99)">+</button>
                   </div>
                 </div>
 
-                <!-- Butin -5 -->
-                <div class="flex items-center gap-2 mb-1">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-neg font-bold">-5</span></span>
-                  <div class="flex items-center gap-2">
-                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM5', -1, 99)" :disabled="roundInputs[p.id].lootM5 <= 0">−</button>
-                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootM5 }}</span>
-                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM5', 1, 99)">+</button>
-                  </div>
-                </div>
-
-                <!-- Butin -10 -->
-                <div class="flex items-center gap-2 mb-2">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Butin <span class="score-neg font-bold">-10</span></span>
-                  <div class="flex items-center gap-2">
-                    <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM10', -1, 99)" :disabled="roundInputs[p.id].lootM10 <= 0">−</button>
-                    <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].lootM10 }}</span>
-                    <button class="stepper-btn stepper-plus" style="width:32px;height:32px" @click="adjustField(p.id, 'lootM10', 1, 99)">+</button>
-                  </div>
-                </div>
-
-                <div class="text-xs muted mt-2 mb-1">Casier de Davy Jones (toujours)</div>
-                <!-- Davy Jones : +20 par léviathan détruit -->
+                <!-- Davy Jones : +20 per leviathan -->
                 <div class="flex items-center gap-2">
-                  <span class="flex-1 text-sm" style="color:#c4b8a0">Léviathans détruits <span class="score-pos font-bold">(+20/léviathan)</span></span>
+                  <span class="flex-1 text-sm" style="color:#c4b8a0" :title="t('ttDavyJones')">🦑 {{ t('leviathan') }} <span class="score-pos text-xs font-bold">(+20)</span></span>
                   <div class="flex items-center gap-2">
                     <button class="stepper-btn stepper-minus" style="width:32px;height:32px" @click="adjustField(p.id, 'davyJones', -1, 99)" :disabled="roundInputs[p.id].davyJones <= 0">−</button>
                     <span class="stepper-val" style="font-size:1rem">{{ roundInputs[p.id].davyJones }}</span>
@@ -507,20 +578,22 @@
 
       <!-- Advance button -->
       <button class="btn-primary w-full py-4 rounded-xl text-xl" @click="validateRound">
-        {{ currentRound < 10 ? '⚓ Manche suivante ⚓' : '🏴‍☠️ Terminer la partie 🏴‍☠️' }}
+        {{ currentRound < 10 ? t('nextRound') : t('endGame') }}
       </button>
     </div>
 
     <!-- ==================== PHASE 3: RECAP ==================== -->
     <div v-if="phase === 'recap'" class="fade-in">
+      <!-- Confetti canvas -->
+      <canvas id="confetti-canvas"></canvas>
       <div class="text-center mb-6">
         <div class="text-4xl mb-2">🏴‍☠️</div>
-        <h1 class="pirate-font text-4xl gold-text" style="text-shadow:0 0 30px rgba(212,175,55,0.5)">Fin de la Partie!</h1>
+        <h1 class="pirate-font text-4xl gold-text" style="text-shadow:0 0 30px rgba(212,175,55,0.5)">{{ t('endTitle') }}</h1>
       </div>
 
       <!-- Podium -->
       <div class="card card-gold p-5 mb-5">
-        <h2 class="pirate-font text-2xl gold-text text-center mb-4">Classement Final</h2>
+        <h2 class="pirate-font text-2xl gold-text text-center mb-4">{{ t('finalRanking') }}</h2>
         <div class="space-y-3">
           <div
             v-for="(p, i) in sortedPlayers"
@@ -540,19 +613,19 @@
       <div class="card p-4 mb-5 text-center" style="border:1px solid rgba(212,175,55,0.4); background: linear-gradient(145deg,#12203a,#1a2c4e)">
         <div class="text-3xl mb-1">👑</div>
         <p class="pirate-font text-2xl gold-text">{{ sortedPlayers[0]?.name }}</p>
-        <p class="muted text-sm">remporte la victoire avec {{ playerScores[sortedPlayers[0]?.id] }} points !</p>
+        <p class="muted text-sm">{{ tpl('winsWithPts', {pts: playerScores[sortedPlayers[0]?.id]}) }}</p>
       </div>
 
       <!-- Full score table -->
       <div class="card card-gold mb-5">
-        <h2 class="pirate-font text-xl gold-text p-4 pb-2">Tableau des scores</h2>
+        <h2 class="pirate-font text-xl gold-text p-4 pb-2">{{ t('scoreTable') }}</h2>
         <div style="overflow-x:auto">
           <table>
             <thead>
               <tr>
-                <th style="text-align:left">Joueur</th>
-                <th v-for="r in 10" :key="r">M{{ r }}</th>
-                <th>Total</th>
+                <th style="text-align:left">{{ t('playerCol') }}</th>
+                <th v-for="r in 10" :key="r">{{ t('roundAbbr') }}{{ r }}</th>
+                <th>{{ t('total') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -577,14 +650,14 @@
 
       <!-- Round breakdown -->
       <div class="card card-gold mb-6 p-4">
-        <h2 class="pirate-font text-xl gold-text mb-3">Détail par manche</h2>
+        <h2 class="pirate-font text-xl gold-text mb-3">{{ t('roundBreakdown') }}</h2>
         <div v-for="(round, idx) in history" :key="idx" class="mb-3">
-          <div class="text-sm font-semibold gold-text mb-1">Manche {{ idx + 1 }}</div>
+          <div class="text-sm font-semibold gold-text mb-1">{{ tpl('roundLabel', {n: idx + 1}) }}</div>
           <div class="space-y-1">
             <div v-for="p in players" :key="p.id" class="flex items-center gap-2 text-sm py-1 px-2 rounded" style="background:rgba(255,255,255,0.03)">
               <div class="avatar" :class="'avatar-' + p.colorIdx" style="width:20px;height:20px;font-size:0.6rem;border-width:1px">{{ p.name[0].toUpperCase() }}</div>
               <span class="flex-1">{{ p.name }}</span>
-              <span class="muted">Annonce: {{ round.inputs[p.id]?.bid ?? '—' }} / Plis: {{ round.inputs[p.id]?.won ?? '—' }}</span>
+              <span class="muted">{{ tpl('bidLabel', {bid: round.inputs[p.id]?.bid ?? '—', won: round.inputs[p.id]?.won ?? '—'}) }}</span>
               <span class="font-bold" :class="scoreClass(round.scores[p.id])">{{ round.scores[p.id] > 0 ? '+' : '' }}{{ round.scores[p.id] }}</span>
             </div>
           </div>
@@ -593,27 +666,50 @@
 
       <!-- New game -->
       <button class="btn-primary w-full py-4 rounded-xl text-xl" @click="confirmLeave(newGame)">
-        ⚓ Nouvelle Partie ⚓
+        {{ t('newGame') }}
       </button>
     </div>
 
   </div>
+
+  <!-- ==================== ROUND WARNING MODAL ==================== -->
+  <transition name="modal-fade">
+    <div v-if="showRoundWarning" class="modal-overlay" @click.self="showRoundWarning = false">
+      <div class="modal-box fade-in">
+        <div class="text-center mb-2" style="font-size:2.8rem">🦑</div>
+        <h2 class="pirate-font text-2xl gold-text text-center mb-2">{{ t('roundWarningTitle') }}</h2>
+        <p class="text-center mb-6" style="color:#b0a890;font-size:1rem">
+          {{ tpl('roundWarningBody1', {total: totalWonThisRound}) }}<br>
+          {{ tpl('roundWarningBody2', {round: currentRound}) }}<br><br>
+          {{ t('roundWarningBody3') }}
+        </p>
+        <div class="flex gap-3">
+          <button class="btn-secondary flex-1 py-3 rounded-xl text-base" @click="showRoundWarning = false">
+            {{ t('roundWarningCorrect') }}
+          </button>
+          <button class="btn-primary flex-1 py-3 rounded-xl text-base" @click="confirmValidateRound">
+            {{ t('roundWarningConfirm') }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </transition>
 
   <!-- ==================== LEAVE CONFIRMATION MODAL ==================== -->
   <transition name="modal-fade">
     <div v-if="showLeaveModal" class="modal-overlay" @click.self="leaveModalCancel">
       <div class="modal-box fade-in">
         <div class="text-center mb-2" style="font-size:2.8rem">☠️</div>
-        <h2 class="pirate-font text-2xl gold-text text-center mb-2">Abandonner la partie ?</h2>
+        <h2 class="pirate-font text-2xl gold-text text-center mb-2">{{ t('abandonTitle') }}</h2>
         <p class="text-center mb-6" style="color:#b0a890;font-size:1rem">
-          Les scores en cours seront perdus à jamais<br>dans les abysses…
+          {{ t('abandonText1') }}<br>{{ t('abandonText2') }}
         </p>
         <div class="flex gap-3">
           <button class="btn-secondary flex-1 py-3 rounded-xl text-base" @click="leaveModalCancel">
-            ↩ Rester à bord
+            {{ t('stayBoard') }}
           </button>
           <button class="btn-danger flex-1 py-3 rounded-xl text-base" @click="leaveModalConfirm">
-            Abandonner
+            {{ t('abandon') }}
           </button>
         </div>
       </div>
@@ -624,24 +720,237 @@
 <script>
 const { createApp, reactive, ref, computed, watch, onMounted, onUnmounted } = Vue;
 
+const translations = {
+  fr: {
+    subtitle: 'Calculateur de Scores',
+    extensionLabel: 'Extension Skull King',
+    extensionDesc: 'Cartes 7/8, Second, Rascal, Butin, Casier de Davy Jones activés.',
+    bonusAlwaysLabel: 'Bonus si pari raté',
+    bonusAlwaysDesc: 'Les bonus spéciaux s\'appliquent même si le pari est échoué.',
+    playersHeader: '⚓ Joueurs ({count}/8)',
+    playerPlaceholder: 'Nom du joueur...',
+    addPlayer: 'Ajouter',
+    noPlayers: 'Ajoutez au moins 2 joueurs pour commencer.',
+    startGame: '⚔️ Commencer la Partie ⚔️',
+    needTwoPlayers: 'Il faut au moins 2 joueurs.',
+    back: '← Retour',
+    roundLabel: 'Manche {n}/10',
+    hideScores: 'Masquer',
+    showScores: 'Scores',
+    abandonBtn: '⛵ Abandonner la partie',
+    currentRanking: 'Classement actuel',
+    starterTitle: 'Commence la manche',
+    totalColon: 'Total :',
+    thisRound: 'Cette manche',
+    bid: 'Annonce (mise)',
+    won: 'Plis remportés',
+    specialBonuses: 'Bonus spéciaux',
+    ttCards14: 'Cartes 14 capturées (+10/carte)',
+    ttMermaidCapSK: 'Sirène capture Skull King (+40)',
+    ttSKCapPirates: 'Skull King capture pirates (+30/pirate)',
+    ttPirateCapMermaids: 'Pirate capture sirènes (+20/sirène)',
+    extensionSection: 'Extension (si pari correct)',
+    ttCard8: 'Carte 8 remportée (+5/carte)',
+    ttCard7: 'Carte 7 remportée (-5/carte)',
+    ttSecond: 'Second capturé par SK/Sirène (+30)',
+    ttRascal: 'Rascal de Roatán : pari ±10 ou ±20 pts',
+    alwaysSection: 'Toujours',
+    ttLoot: 'Cartes Butin (+20/carte)',
+    loot: 'Butin',
+    ttDavyJones: 'Casier de Davy Jones : léviathans détruits (+20)',
+    leviathan: 'Léviathan',
+    nextRound: '⚓ Manche suivante ⚓',
+    endGame: '🏴‍☠️ Terminer la partie 🏴‍☠️',
+    endTitle: 'Fin de la Partie !',
+    finalRanking: 'Classement Final',
+    winsWithPts: 'remporte la victoire avec {pts} points !',
+    scoreTable: 'Tableau des scores',
+    playerCol: 'Joueur',
+    roundAbbr: 'M',
+    total: 'Total',
+    roundBreakdown: 'Détail par manche',
+    bidLabel: 'Annonce : {bid} / Plis : {won}',
+    newGame: '⚓ Nouvelle Partie ⚓',
+    roundWarningTitle: 'Plis inhabituels',
+    roundWarningBody1: 'Total des plis remportés : {total}',
+    roundWarningBody2: 'Numéro de la manche : {round}',
+    roundWarningBody3: 'Est-ce dû à un Kraken ou une autre carte spéciale ?',
+    roundWarningCorrect: '← Corriger',
+    roundWarningConfirm: 'Confirmer ✓',
+    abandonTitle: 'Abandonner la partie ?',
+    abandonText1: 'Les scores en cours seront perdus à jamais',
+    abandonText2: 'dans les abysses…',
+    stayBoard: '↩ Rester à bord',
+    abandon: 'Abandonner',
+  },
+  en: {
+    subtitle: 'Score Calculator',
+    extensionLabel: 'Skull King Extension',
+    extensionDesc: 'Cards 7/8, Second, Rascal, Loot, Davy Jones\' Locker enabled.',
+    bonusAlwaysLabel: 'Bonuses on failed bid',
+    bonusAlwaysDesc: 'Special bonuses apply even when the bid is missed.',
+    playersHeader: '⚓ Players ({count}/8)',
+    playerPlaceholder: 'Player name...',
+    addPlayer: 'Add',
+    noPlayers: 'Add at least 2 players to start.',
+    startGame: '⚔️ Start Game ⚔️',
+    needTwoPlayers: 'At least 2 players required.',
+    back: '← Back',
+    roundLabel: 'Round {n}/10',
+    hideScores: 'Hide',
+    showScores: 'Scores',
+    abandonBtn: '⛵ Abandon game',
+    currentRanking: 'Current standings',
+    starterTitle: 'Starts this round',
+    totalColon: 'Total:',
+    thisRound: 'This round',
+    bid: 'Bid',
+    won: 'Tricks won',
+    specialBonuses: 'Special Bonuses',
+    ttCards14: 'Captured 14 cards (+10/card)',
+    ttMermaidCapSK: 'Mermaid captures Skull King (+40)',
+    ttSKCapPirates: 'Skull King captures pirates (+30/pirate)',
+    ttPirateCapMermaids: 'Pirate captures mermaids (+20/mermaid)',
+    extensionSection: 'Extension (if bid correct)',
+    ttCard8: 'Card 8 won (+5/card)',
+    ttCard7: 'Card 7 won (-5/card)',
+    ttSecond: 'Second captured by SK/Mermaid (+30)',
+    ttRascal: 'Rascal of Roatan: bet ±10 or ±20 pts',
+    alwaysSection: 'Always',
+    ttLoot: 'Loot cards (+20/card)',
+    loot: 'Loot',
+    ttDavyJones: 'Davy Jones\' Locker: leviathans destroyed (+20)',
+    leviathan: 'Leviathan',
+    nextRound: '⚓ Next Round ⚓',
+    endGame: '🏴‍☠️ End Game 🏴‍☠️',
+    endTitle: 'Game Over!',
+    finalRanking: 'Final Rankings',
+    winsWithPts: 'wins with {pts} points!',
+    scoreTable: 'Score Table',
+    playerCol: 'Player',
+    roundAbbr: 'R',
+    total: 'Total',
+    roundBreakdown: 'Round Breakdown',
+    bidLabel: 'Bid: {bid} / Won: {won}',
+    newGame: '⚓ New Game ⚓',
+    roundWarningTitle: 'Unusual tricks total',
+    roundWarningBody1: 'Total tricks won: {total}',
+    roundWarningBody2: 'Round number: {round}',
+    roundWarningBody3: 'Is this due to a Kraken or other special card?',
+    roundWarningCorrect: '← Correct',
+    roundWarningConfirm: 'Confirm ✓',
+    abandonTitle: 'Abandon game?',
+    abandonText1: 'Current scores will be lost forever',
+    abandonText2: 'in the abyss…',
+    stayBoard: '↩ Stay on board',
+    abandon: 'Abandon',
+  },
+  es: {
+    subtitle: 'Calculadora de Puntuaciones',
+    extensionLabel: 'Extensión Skull King',
+    extensionDesc: 'Cartas 7/8, Segundo, Rascal, Botín, Cofre de Davy Jones activados.',
+    bonusAlwaysLabel: 'Bonos al fallar apuesta',
+    bonusAlwaysDesc: 'Los bonos especiales se aplican aunque la apuesta falle.',
+    playersHeader: '⚓ Jugadores ({count}/8)',
+    playerPlaceholder: 'Nombre del jugador...',
+    addPlayer: 'Añadir',
+    noPlayers: 'Añade al menos 2 jugadores para comenzar.',
+    startGame: '⚔️ Comenzar Partida ⚔️',
+    needTwoPlayers: 'Se necesitan al menos 2 jugadores.',
+    back: '← Atrás',
+    roundLabel: 'Ronda {n}/10',
+    hideScores: 'Ocultar',
+    showScores: 'Puntos',
+    abandonBtn: '⛵ Abandonar partida',
+    currentRanking: 'Clasificación actual',
+    starterTitle: 'Empieza esta ronda',
+    totalColon: 'Total:',
+    thisRound: 'Esta ronda',
+    bid: 'Apuesta',
+    won: 'Bazas ganadas',
+    specialBonuses: 'Bonificaciones especiales',
+    ttCards14: 'Cartas 14 capturadas (+10/carta)',
+    ttMermaidCapSK: 'Sirena captura Skull King (+40)',
+    ttSKCapPirates: 'Skull King captura piratas (+30/pirata)',
+    ttPirateCapMermaids: 'Pirata captura sirenas (+20/sirena)',
+    extensionSection: 'Extensión (si apuesta correcta)',
+    ttCard8: 'Carta 8 ganada (+5/carta)',
+    ttCard7: 'Carta 7 ganada (-5/carta)',
+    ttSecond: 'Segundo capturado por SK/Sirena (+30)',
+    ttRascal: 'Rascal de Roatán: apuesta ±10 o ±20 pts',
+    alwaysSection: 'Siempre',
+    ttLoot: 'Cartas de Botín (+20/carta)',
+    loot: 'Botín',
+    ttDavyJones: 'Cofre de Davy Jones: leviatanes destruidos (+20)',
+    leviathan: 'Leviatán',
+    nextRound: '⚓ Siguiente Ronda ⚓',
+    endGame: '🏴‍☠️ Terminar Partida 🏴‍☠️',
+    endTitle: '¡Fin de la Partida!',
+    finalRanking: 'Clasificación Final',
+    winsWithPts: '¡gana con {pts} puntos!',
+    scoreTable: 'Tabla de puntuaciones',
+    playerCol: 'Jugador',
+    roundAbbr: 'R',
+    total: 'Total',
+    roundBreakdown: 'Detalle por ronda',
+    bidLabel: 'Apuesta: {bid} / Bazas: {won}',
+    newGame: '⚓ Nueva Partida ⚓',
+    roundWarningTitle: 'Bazas inusuales',
+    roundWarningBody1: 'Total de bazas ganadas: {total}',
+    roundWarningBody2: 'Número de ronda: {round}',
+    roundWarningBody3: '¿Es por un Kraken u otra carta especial?',
+    roundWarningCorrect: '← Corregir',
+    roundWarningConfirm: 'Confirmar ✓',
+    abandonTitle: '¿Abandonar la partida?',
+    abandonText1: 'Las puntuaciones actuales se perderán para siempre',
+    abandonText2: 'en el abismo…',
+    stayBoard: '↩ Quedarse a bordo',
+    abandon: 'Abandonar',
+  },
+};
+
 createApp({
   setup() {
     // ---- State ----
     const phase = ref('setup');
     const extensionEnabled = ref(false);
+    const bonusAlwaysEnabled = ref(false);
     const newPlayerName = ref('');
     const players = reactive([]);
     const currentRound = ref(1);
-    const history = reactive([]); // array of { inputs, scores }
+    const history = reactive([]);
     const roundInputs = reactive({});
     const openBonus = reactive({});
     const showScores = ref(false);
     const showLeaveModal = ref(false);
-    const leaveModalAction = ref(null); // function to call if confirmed
+    const leaveModalAction = ref(null);
+    const showRoundWarning = ref(false);
+    const lang = ref(localStorage.getItem('skLang') || 'fr');
+    let confettiFrame = null;
 
     let nextId = 1;
     const colorCount = 8;
 
+    // ---- i18n ----
+    function t(key) {
+      return (translations[lang.value] || translations.fr)[key] || key;
+    }
+
+    function tpl(key, vars) {
+      let str = t(key);
+      for (const [k, v] of Object.entries(vars)) {
+        str = str.replace('{' + k + '}', v);
+      }
+      return str;
+    }
+
+    function setLang(l) {
+      lang.value = l;
+      localStorage.setItem('skLang', l);
+      document.documentElement.lang = l;
+    }
+
+    document.documentElement.lang = lang.value;
 
     // ---- Players ----
     function addPlayer() {
@@ -655,7 +964,6 @@ createApp({
     function removePlayer(id) {
       const idx = players.findIndex(p => p.id === id);
       if (idx !== -1) players.splice(idx, 1);
-      // re-assign color indices
       players.forEach((p, i) => { p.colorIdx = i % colorCount; });
     }
 
@@ -666,7 +974,7 @@ createApp({
         cards14: 0, mermaidCapSK: false,
         skCapPirates: 0, pirateCapMermaids: 0,
         card8: 0, card7: 0, secondCaptured: 0, davyJones: 0,
-        lootP10: 0, lootP5: 0, lootM5: 0, lootM10: 0,
+        loot: 0, rascalBet: 0,
       };
     }
 
@@ -701,43 +1009,59 @@ createApp({
       const bid = inp.bid;
       const won = inp.won;
       const round = currentRound.value;
+      const bidSucceeded = bid === 0 ? won === 0 : won === bid;
 
       let score = 0;
 
       if (bid === 0) {
         score = won === 0 ? 10 * round : -10 * round;
       } else {
-        if (won === bid) {
-          score = 20 * bid;
-          // bonuses
-          score += inp.cards14 * 10;
-          if (inp.mermaidCapSK) score += 40;
-          score += inp.skCapPirates * 30;
-          score += inp.pirateCapMermaids * 20;
-        } else {
-          score = -10 * Math.abs(bid - won);
-        }
+        score = won === bid ? 20 * bid : -10 * Math.abs(bid - won);
       }
 
-      // Extension (cartes 7/8/Second : si pari correct ; Casier de Davy Jones : toujours)
+      // Bonuses (apply if bid succeeded OR bonusAlwaysEnabled; only for bid > 0)
+      if (bid > 0 && (bidSucceeded || bonusAlwaysEnabled.value)) {
+        score += inp.cards14 * 10;
+        if (inp.mermaidCapSK) score += 40;
+        score += inp.skCapPirates * 30;
+        score += inp.pirateCapMermaids * 20;
+      }
+
+      // Extension (cartes 7/8/Second : si pari correct ; Butin + Davy Jones : toujours)
       if (extensionEnabled.value) {
-        if (bid > 0 && won === bid) {
+        if (bid > 0 && (bidSucceeded || bonusAlwaysEnabled.value)) {
           score += inp.card8 * 5;
           score -= inp.card7 * 5;
           score += inp.secondCaptured * 30;
         }
+        // Rascal de Roatán (toujours, ±rascalBet)
+        if (inp.rascalBet > 0) {
+          score += bidSucceeded ? inp.rascalBet : -inp.rascalBet;
+        }
+        // Butin +20/carte (toujours)
+        score += inp.loot * 20;
+        // Casier de Davy Jones (toujours)
         score += inp.davyJones * 20;
-        // Cartes butin (toujours)
-        score += inp.lootP10 * 10;
-        score += inp.lootP5 * 5;
-        score -= inp.lootM5 * 5;
-        score -= inp.lootM10 * 10;
       }
 
       return score;
     }
 
     function validateRound() {
+      const totalWon = players.reduce((sum, p) => sum + (roundInputs[p.id]?.won || 0), 0);
+      if (totalWon !== currentRound.value) {
+        showRoundWarning.value = true;
+        return;
+      }
+      doValidateRound();
+    }
+
+    function confirmValidateRound() {
+      showRoundWarning.value = false;
+      doValidateRound();
+    }
+
+    function doValidateRound() {
       const scores = {};
       const inputsCopy = {};
       players.forEach(p => {
@@ -762,7 +1086,6 @@ createApp({
       if (history.length === 0) return;
       const prev = history.pop();
       if (currentRound.value > 1) currentRound.value--;
-      // Restore inputs
       players.forEach(p => {
         if (prev.inputs[p.id]) {
           roundInputs[p.id] = JSON.parse(JSON.stringify(prev.inputs[p.id]));
@@ -773,6 +1096,10 @@ createApp({
     }
 
     // ---- Computed ----
+    const totalWonThisRound = computed(() =>
+      players.reduce((sum, p) => sum + (roundInputs[p.id]?.won || 0), 0)
+    );
+
     const playerScores = computed(() => {
       const totals = {};
       players.forEach(p => { totals[p.id] = 0; });
@@ -786,6 +1113,11 @@ createApp({
 
     const sortedPlayers = computed(() => {
       return [...players].sort((a, b) => (playerScores.value[b.id] || 0) - (playerScores.value[a.id] || 0));
+    });
+
+    const starterPlayerId = computed(() => {
+      if (players.length === 0) return null;
+      return players[(currentRound.value - 1) % players.length].id;
     });
 
     function getRoundScore(playerId, roundIdx) {
@@ -805,9 +1137,53 @@ createApp({
       history.splice(0);
       currentRound.value = 1;
       extensionEnabled.value = false;
+      bonusAlwaysEnabled.value = false;
       newPlayerName.value = '';
       phase.value = 'setup';
     }
+
+    // ---- Confetti ----
+    function startConfetti() {
+      const canvas = document.getElementById('confetti-canvas');
+      if (!canvas) return;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      const ctx = canvas.getContext('2d');
+      const colors = ['#d4af37','#f59e0b','#4ade80','#3b82f6','#ec4899','#ef4444','#8b5cf6','#fff'];
+      const particles = Array.from({ length: 130 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height - canvas.height,
+        w: Math.random() * 13 + 5,
+        h: Math.random() * 6 + 3,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        speed: Math.random() * 3 + 2,
+        angle: Math.random() * Math.PI * 2,
+        spin: (Math.random() - 0.5) * 0.15,
+        drift: (Math.random() - 0.5) * 1.5,
+      }));
+      if (confettiFrame) cancelAnimationFrame(confettiFrame);
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(p => {
+          p.y += p.speed; p.x += p.drift; p.angle += p.spin;
+          if (p.y > canvas.height) { p.y = -p.h; p.x = Math.random() * canvas.width; }
+          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
+          ctx.fillStyle = p.color; ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+          ctx.restore();
+        });
+        confettiFrame = requestAnimationFrame(draw);
+      }
+      draw();
+      setTimeout(() => {
+        cancelAnimationFrame(confettiFrame);
+        confettiFrame = null;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }, 6000);
+    }
+
+    watch(phase, (newPhase) => {
+      if (newPhase === 'recap') setTimeout(startConfetti, 200);
+    });
 
     // ---- Leave / refresh protection ----
     function confirmLeave(action) {
@@ -885,12 +1261,13 @@ createApp({
     });
 
     return {
-      phase, extensionEnabled, newPlayerName, players,
+      phase, extensionEnabled, bonusAlwaysEnabled, newPlayerName, players,
       currentRound, history, roundInputs, openBonus, showScores,
-      showLeaveModal, leaveModalAction,
+      showLeaveModal, leaveModalAction, showRoundWarning, lang,
+      t, tpl, setLang,
       addPlayer, removePlayer, startGame, toggleBonusPanel,
-      adjustField, calculateRoundScore, validateRound, goToPreviousRound,
-      playerScores, sortedPlayers, getRoundScore, scoreClass, newGame,
+      adjustField, calculateRoundScore, validateRound, confirmValidateRound, goToPreviousRound,
+      playerScores, sortedPlayers, totalWonThisRound, getRoundScore, scoreClass, starterPlayerId, newGame,
       confirmLeave, leaveModalConfirm, leaveModalCancel,
     };
   }
